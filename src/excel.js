@@ -49,6 +49,77 @@ async function createExcelReport(report) {
   return REPORT_FILENAME;
 }
 
+const DAILY_REPORT_FILENAME = 'miner_daily_report.xlsx';
+
+const MONTH_NAMES = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
+
+/**
+ * Форматирование даты: "13 марта 2026 г."
+ */
+function formatDateRu(isoDate) {
+  const [y, m, d] = isoDate.split('-').map(Number);
+  return `${d} ${MONTH_NAMES[m - 1]} ${y} г.`;
+}
+
+/**
+ * Создание месячного отчёта по майнерам (для отправки в Telegram).
+ * Заголовок, таблица по IP, итоги.
+ *
+ * @param {Array<{ip: string, hours: number, hash_mh: number, power_wh: number}>} aggregates - агрегаты по IP
+ * @param {string} dateFrom - YYYY-MM-DD
+ * @param {string} dateTo - YYYY-MM-DD
+ * @returns {Promise<string>} - путь к файлу
+ */
+async function createMonthlyReportByIp(aggregates, dateFrom, dateTo) {
+  const workbook = new ExcelJS.Workbook();
+  const sheet = workbook.addWorksheet('Отчёт по майнингу');
+
+  const title = `Отчет по майнингу за ${formatDateRu(dateFrom)} по ${formatDateRu(dateTo)}`;
+  sheet.addRow([title]);
+  sheet.mergeCells('A1:E1');
+  sheet.getRow(1).font = { bold: true, size: 12 };
+  sheet.addRow([]);
+
+  sheet.addRow(['IP адрес', 'Часы работы', 'Выработка gHASH', 'Потребление kW']);
+  sheet.getRow(3).font = { bold: true };
+
+  let totalHours = 0;
+  let totalHashMh = 0;
+  let totalPowerWh = 0;
+
+  for (const row of aggregates) {
+    const hours = Number(row.hours.toFixed(2));
+    const hashGh = Number((row.hash_mh / 1000).toFixed(2));
+    const powerKwh = Number((row.power_wh / 1000).toFixed(2));
+    sheet.addRow([row.ip, hours, hashGh, powerKwh]);
+    totalHours += row.hours;
+    totalHashMh += row.hash_mh;
+    totalPowerWh += row.power_wh;
+  }
+
+  sheet.addRow([]);
+  sheet.addRow([
+    'Итого:',
+    `Оборудований: ${aggregates.length}`,
+    `Часов: ${totalHours.toFixed(2)}`,
+    `gHASH: ${(totalHashMh / 1000).toFixed(2)}`,
+    `Потребление (кВт·ч): ${(totalPowerWh / 1000).toFixed(2)}`,
+  ]);
+  sheet.getRow(sheet.rowCount).font = { bold: true };
+
+  sheet.getColumn(1).width = 18;
+  sheet.getColumn(2).width = 15;
+  sheet.getColumn(3).width = 18;
+  sheet.getColumn(4).width = 18;
+
+  await workbook.xlsx.writeFile(DAILY_REPORT_FILENAME);
+  return DAILY_REPORT_FILENAME;
+}
+
 module.exports = {
   createExcelReport,
+  createDailyCumulativeReport: createMonthlyReportByIp,
+  createMonthlyReportByIp,
+  REPORT_FILENAME,
+  DAILY_REPORT_FILENAME,
 };

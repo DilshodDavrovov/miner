@@ -4,11 +4,15 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
-    "scan": "node index.js"
+    "scan": "node index.js",
+    "daemon": "node daemon.js",
+    "send-report": "node send-daily-report.js"
   },
   "dependencies": {
+    "sql.js": "^1.11.0",
     "dotenv": "^16.3.1",
     "exceljs": "^4.4.0",
+    "node-cron": "^3.0.3",
     "telegraf": "^4.16.3"
   }
 }

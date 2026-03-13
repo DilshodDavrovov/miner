@@ -3,4 +3,5 @@ node_modules/
 .env.local
 .env.*.local
 *.xlsx
+miner_data.db
 .DS_Store

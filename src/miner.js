@@ -8,7 +8,7 @@ const net = require('net');
  * @param {number} timeoutMs - таймаут в мс
  * @returns {Promise<{ ip: string, data: string|null }>}
  */
-function queryMiner(ip, cmd = 'summary', port, timeoutMs = 1000) {
+function queryMiner(ip, cmd = 'summary', port, timeoutMs = 100) {
   return new Promise((resolve) => {
     const client = new net.Socket();
     let data = '';
