@@ -121,7 +121,8 @@ function getDailyAggregates(dateFrom, dateTo) {
       strftime('%Y-%m-%d', timestamp/1000, 'unixepoch', 'localtime') AS day,
       SUM(CASE WHEN hash_avg > 0 THEN 0.25 ELSE 0 END) AS hours,
       SUM(hash_avg * 0.25) AS hash_mh,
-      SUM(power * 0.25) AS power_wh
+      SUM(power * 0.25) AS power_wh,
+      COUNT(DISTINCT CASE WHEN hash_avg > 0 THEN ip END) AS active_miners
     FROM miner_snapshots
     WHERE strftime('%Y-%m-%d', timestamp/1000, 'unixepoch', 'localtime') BETWEEN ? AND ?
     GROUP BY day

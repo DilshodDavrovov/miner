@@ -39,7 +39,28 @@ async function sendDocument(filePath, caption) {
   );
 }
 
+/**
+ * Отправка изображения (PNG) в Telegram с подписью.
+ * @param {string} filePath - путь к PNG файлу
+ * @param {string} caption - подпись
+ * @returns {Promise<void>}
+ */
+async function sendPhoto(filePath, caption) {
+  const chatId = TELEGRAM_CHAT_ID;
+  if (!chatId) {
+    throw new Error('TELEGRAM_CHAT_ID не задан в .env');
+  }
+
+  const telegram = getBot().telegram;
+  await telegram.sendPhoto(
+    chatId,
+    { source: fs.createReadStream(filePath) },
+    { caption }
+  );
+}
+
 module.exports = {
   getBot,
   sendDocument,
+  sendPhoto,
 };

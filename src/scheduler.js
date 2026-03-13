@@ -1,9 +1,10 @@
 const cron = require('node-cron');
 const { scanVpn } = require('./report');
 const { vpns } = require('./config');
-const { initDb, insertSnapshots, getMonthlyAggregatesByIp } = require('./database');
+const { initDb, insertSnapshots, getMonthlyAggregatesByIp, getDailyAggregates } = require('./database');
 const { createMonthlyReportByIp } = require('./excel');
-const { sendDocument } = require('./telegram');
+const { sendDocument, sendPhoto } = require('./telegram');
+const { generateDailyChart } = require('./chart');
 
 let isCollecting = false;
 let isSendingReport = false;
@@ -72,14 +73,38 @@ async function sendDailyReport() {
   const dateFrom = toLocalDate(firstOfMonth);
 
   const aggregates = getMonthlyAggregatesByIp(dateFrom, dateTo);
+  const dailyRows = getDailyAggregates(dateFrom, dateTo);
   const filePath = await createMonthlyReportByIp(aggregates, dateFrom, dateTo);
-  const caption = [
+
+  const totalHours = aggregates.reduce((sum, r) => sum + (r.hours || 0), 0);
+  const totalHashGh = aggregates.reduce((sum, r) => sum + (r.hash_mh || 0), 0) / 1000;
+  const totalPowerKwh = aggregates.reduce((sum, r) => sum + (r.power_wh || 0), 0) / 1000;
+
+  const captionLines = [
     `📊 Отчёт по майнингу`,
     `Период: ${dateFrom} — ${dateTo}`,
-    aggregates.length === 0 ? 'Нет данных за период.' : `Майнеров в отчёте: ${aggregates.length}`,
-  ].join('\n');
+  ];
+  if (aggregates.length === 0) {
+    captionLines.push('Нет данных за период.');
+  } else {
+    captionLines.push(`Майнеров в отчёте: ${aggregates.length}`);
+    captionLines.push(`Часов работы: ${totalHours.toFixed(2)}`);
+    captionLines.push(`gHASH: ${totalHashGh.toFixed(2)}`);
+    captionLines.push(`Потребление (кВт·ч): ${totalPowerKwh.toFixed(2)}`);
+  }
+  const caption = captionLines.join('\n');
 
   await sendDocument(filePath, caption);
+
+  if (dailyRows.length > 0) {
+    try {
+      const chartPath = await generateDailyChart(dailyRows);
+      await sendPhoto(chartPath, `📈 Тенденция по дням: ${dateFrom} — ${dateTo}`);
+    } catch (err) {
+      console.error('Ошибка генерации/отправки графика:', err.message);
+    }
+  }
+
   console.log(`[${new Date().toISOString()}] Ежедневный отчёт отправлен в Telegram.`);
   } finally {
     isSendingReport = false;
